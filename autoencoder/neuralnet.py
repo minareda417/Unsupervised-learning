@@ -1,11 +1,17 @@
 import numpy as np
 import random
+from .activations import ActivationFunction
 
 class NeuralNet:
-    def __init__(self,  *sizes):
+    def __init__(self, *sizes,
+                 activation: ActivationFunction = None,
+                 l2_param = 0, 
+                 seed = 0):
         self.nlayers = len(sizes)
         self.sizes = sizes
-        np.random.seed(0)
+        self.activation = activation
+        self.l2_param = l2_param # lambda parameter for L2 regularization
+        np.random.seed(seed)
         self.weights = [np.random.randn(out_sz, in_sz) for in_sz , out_sz in zip(sizes, sizes[1:])] 
         # each array represent weights between each layer 
         # each array's shape is (no. of neurons in current layer, no. of neurons in previous layer)
@@ -15,32 +21,32 @@ class NeuralNet:
 
     def feed_forward(self, a):
         for w, b in zip(self.weights, self.biases):
-            a = self.sigmoid(w@a + b)
+            a = self.activation.activate(w@a + b)
         return a
     
     def SGD(self, training_data, epochs, batch_size, eta, test_data = None):
+        n = len(training_data)
         for nepoch in range(epochs):
             np.random.shuffle(training_data)
             batches = [training_data[i:i+batch_size] for i in range (0, len(training_data), batch_size)]
             for mini_batch in batches:
-                self.update_mini_batch(mini_batch, eta)
+                self.update_mini_batch(mini_batch, eta, n)
             print(f"epoch {nepoch} : {self.evaluate(test_data)}/{len(test_data)}")
 
-    def update_mini_batch(self, mini_batch, eta):
+    def update_mini_batch(self, mini_batch, eta, n):
         X = np.hstack([x for x, _ in mini_batch])
         Y = np.hstack([y for _, y in mini_batch])
 
         gradient_w, gradient_b = self.backprop(X, Y)
         m = len(mini_batch)
-
-        self.weights = [w - (eta/m)*nw for w, nw in zip(self.weights, gradient_w)]
+        if self.l2_param != 0:
+            self.weights = [(1 - eta*self.l2_param/n)*w - (eta/m)*nw 
+                            for w, nw in zip(self.weights, gradient_w)]
+        else:
+            self.weights = [w - (eta/m)*nw for w, nw in zip(self.weights, gradient_w)]
         self.biases = [b - (eta/m)*nb for b, nb in zip(self.biases, gradient_b)]
     
     def evaluate(self, test_data):
-        """Return the number of test inputs for which the neural
-        network outputs the correct result. Note that the neural
-        network's output is assumed to be the index of whichever
-        neuron in the final layer has the highest activation."""
         test_results = [(np.argmax(self.feed_forward(x)), y)
                         for (x, y) in test_data]
         return sum(int(x == y) for (x, y) in test_results)
@@ -60,10 +66,10 @@ class NeuralNet:
 
         for w, b in zip(self.weights, self.biases):
             z = w@a + b; z_values.append(z) 
-            a = self.sigmoid(z); activations.append(a)
+            a = self.activation.activate(z); activations.append(a)
         
         #             out_sz*N                    out_sz*N
-        delta = self.cost_func_deriv(a, Y) * self.sigmoid_deriv(z) # dL/dz = dL/da * da/dz
+        delta = self.cost_func_deriv(a, Y) * self.activation.derivative(z) # dL/dz = dL/da * da/dz
         #                out_sz*N        (input_layer_size*N).T
         gradient_w[-1] = delta @ activations[-2].T # dL/dw = dL/dz * dz/dw
         #                          out_sz*N -> out_sz*1
@@ -74,7 +80,7 @@ class NeuralNet:
             # assume next layer weights have size (next_out * next_ip)
             # then (next_ip = curr_out) 
             # {((next_out * next_ip).T @ next_out*N -> next_ip*N)  .  curr_out*N} ->  curr_out*N
-            delta = (self.weights[-l+1].T @ delta) * self.sigmoid_deriv(z_values[-l]) # dL/dz for layer l
+            delta = (self.weights[-l+1].T @ delta) * self.activation.derivative(z_values[-l]) # dL/dz for layer l
             #           curr_out*N  @  (curr_ip * N).T        
             gradient_w[-l] = delta @ activations[-l-1].T # dL/dw for layer l
             #            curr_out*N -> curr_out*1
@@ -86,12 +92,6 @@ class NeuralNet:
     def cost_func_deriv(self, y, y_true):
         return (y-y_true)
 
-    def sigmoid(self, x):
-        return 1/(1+np.exp(-x))
-    
-    def sigmoid_deriv(self, x):
-        s = self.sigmoid(x)
-        return s * (1 - s)
     
 
 if __name__ == "__main__":
