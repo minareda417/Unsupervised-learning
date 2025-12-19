@@ -1,57 +1,70 @@
 import numpy as np
 import random
-from .activations import ActivationFunction
+from sklearn.utils import shuffle
+from .activations import ActivationFunction, SigmoidActivation
 
 class NeuralNet:
     def __init__(self, *sizes,
-                 activation: ActivationFunction = None,
-                 l2_param = 0, 
+                 activation: ActivationFunction = SigmoidActivation(),
                  seed = 0):
         self.nlayers = len(sizes)
         self.sizes = sizes
         self.activation = activation
-        self.l2_param = l2_param # lambda parameter for L2 regularization
         np.random.seed(seed)
-        self.weights = [np.random.randn(out_sz, in_sz) for in_sz , out_sz in zip(sizes, sizes[1:])] 
+        # Xavier/Glorot initialization for better gradient flow
+        self.weights = [np.random.randn(out_sz, in_sz) * np.sqrt(2.0 / (in_sz + out_sz)) 
+                       for in_sz, out_sz in zip(sizes, sizes[1:])] 
         # each array represent weights between each layer 
         # each array's shape is (no. of neurons in current layer, no. of neurons in previous layer)
 
         self.biases = [np.random.randn(j, 1) for j in sizes[1:]]
         # each array represent the baises the will be added to each neuron in same layer
 
-    def feed_forward(self, a):
-        for w, b in zip(self.weights, self.biases):
+    def forward(self, a):
+        for i, (w, b) in enumerate(zip(self.weights, self.biases)):
             a = self.activation.activate(w@a + b)
         return a
     
-    def SGD(self, training_data, epochs, batch_size, eta, test_data = None):
-        n = len(training_data)
+    def train(self, X_train, Y_train, epochs, batch_size=128, eta=0.1, l2_param = 0):
+        """
+        X : input data  N*ip_sz*1 (column vectors)
+        Y : true labels N*out_sz*1 (column vectors)
+        """
+        n = len(X_train)
         for nepoch in range(epochs):
-            np.random.shuffle(training_data)
-            batches = [training_data[i:i+batch_size] for i in range (0, len(training_data), batch_size)]
-            for mini_batch in batches:
-                self.update_mini_batch(mini_batch, eta, n)
-            print(f"epoch {nepoch} : {self.evaluate(test_data)}/{len(test_data)}")
+            X_train, Y_train = shuffle(X_train, Y_train)
+            for i in range(0, len(X_train), batch_size):
+                batch_x = np.hstack([x for x in X_train[i:i+batch_size]])
+                batch_y = np.hstack([y for y in Y_train[i:i+batch_size]])
+                self._update_mini_batch(batch_x, batch_y, eta, n, l2_param)
+            
+            print(f"epoch {nepoch+1:>3}/{epochs} : [{self.evaluate(X_train, Y_train):.6f}]")
 
-    def update_mini_batch(self, mini_batch, eta, n):
-        X = np.hstack([x for x, _ in mini_batch])
-        Y = np.hstack([y for _, y in mini_batch])
-
-        gradient_w, gradient_b = self.backprop(X, Y)
-        m = len(mini_batch)
-        if self.l2_param != 0:
-            self.weights = [(1 - eta*self.l2_param/n)*w - (eta/m)*nw 
+    def _update_mini_batch(self, batch_x, batch_y, eta, n, l2_param):
+        """
+        batch_x : batch of input images  ip_sz*N
+        batch_y : batch of true labels  out_sz*N
+        """
+        gradient_w, gradient_b = self._backprop(batch_x, batch_y)
+        m = batch_x.shape[1]
+        if l2_param != 0:
+            self.weights = [(1 - eta*l2_param/n)*w - (eta/m)*nw 
                             for w, nw in zip(self.weights, gradient_w)]
         else:
             self.weights = [w - (eta/m)*nw for w, nw in zip(self.weights, gradient_w)]
         self.biases = [b - (eta/m)*nb for b, nb in zip(self.biases, gradient_b)]
     
-    def evaluate(self, test_data):
-        test_results = [(np.argmax(self.feed_forward(x)), y)
-                        for (x, y) in test_data]
-        return sum(int(x == y) for (x, y) in test_results)
+    def evaluate(self, X, Y_true):
+        """
+        X : batch of input images  N*ip_sz*1
+        Y_true : batch of true labels  N*out_sz*1
+        """
+        Y_pred = self.forward(np.hstack(X))
+        Y_true_stacked = np.hstack(Y_true)
+        mse = np.mean(np.square(Y_pred - Y_true_stacked))
+        return mse
 
-    def backprop(self, X, Y):
+    def _backprop(self, X, Y):
         """
         X : batch of input images  ip_sz*N
         Y : batch of true labels  out_sz*N
@@ -69,7 +82,7 @@ class NeuralNet:
             a = self.activation.activate(z); activations.append(a)
         
         #             out_sz*N                    out_sz*N
-        delta = self.cost_func_deriv(a, Y) * self.activation.derivative(z) # dL/dz = dL/da * da/dz
+        delta = self._cost_func_deriv(activations[-1], Y) * self.activation.derivative(z_values[-1])  # dL/dz = dL/da * da/dz
         #                out_sz*N        (input_layer_size*N).T
         gradient_w[-1] = delta @ activations[-2].T # dL/dw = dL/dz * dz/dw
         #                          out_sz*N -> out_sz*1
@@ -89,10 +102,6 @@ class NeuralNet:
         return gradient_w, gradient_b
             
 
-    def cost_func_deriv(self, y, y_true):
+    def _cost_func_deriv(self, y, y_true):
         return (y-y_true)
 
-    
-
-if __name__ == "__main__":
-    pass

@@ -12,7 +12,9 @@ class ActivationFunction(ABC):
 
 class SigmoidActivation(ActivationFunction):
     def activate(self, x):
-        return 1 / (1 + np.exp(-x))
+        # Clip values to prevent overflow
+        x_clipped = np.clip(x, -500, 500)
+        return 1 / (1 + np.exp(-x_clipped))
     
     def derivative(self, x):
         s = self.activate(x)
