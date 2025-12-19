@@ -24,7 +24,7 @@ class NeuralNet:
             batches = [training_data[i:i+batch_size] for i in range (0, len(training_data), batch_size)]
             for mini_batch in batches:
                 self.update_mini_batch(mini_batch, eta)
-            print(f"epoch {nepoch} : {self.evaluate(test_data)}/{len(training_data)}")
+            print(f"epoch {nepoch} : {self.evaluate(test_data)}/{len(test_data)}")
 
     def update_mini_batch(self, mini_batch, eta):
         X = np.hstack([x for x, _ in mini_batch])
@@ -62,11 +62,11 @@ class NeuralNet:
             z = w@a + b; z_values.append(z) 
             a = self.sigmoid(z); activations.append(a)
         
-        #             10*N                    10*N
+        #             out_sz*N                    out_sz*N
         delta = self.cost_func_deriv(a, Y) * self.sigmoid_deriv(z) # dL/dz = dL/da * da/dz
-        #                10*N        (output_layer_size*N).T
+        #                out_sz*N        (input_layer_size*N).T
         gradient_w[-1] = delta @ activations[-2].T # dL/dw = dL/dz * dz/dw
-        #                          10*N -> 10*1
+        #                          out_sz*N -> out_sz*1
         gradient_b[-1] = np.sum(delta, axis=1, keepdims=True) # dL/db = dL/dz * dz/db
 
         for l in range(2, self.nlayers):
