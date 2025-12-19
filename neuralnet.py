@@ -27,11 +27,14 @@ class NeuralNet:
             print(f"epoch {nepoch} : {self.evaluate(test_data)}/{len(training_data)}")
 
     def update_mini_batch(self, mini_batch, eta):
-        for x, y in mini_batch:
-            n = len(mini_batch)
-            gradient_w, gradient_b = self.backprop(x, y)
-            self.weights = [w - (eta/n)*nw for w, nw in zip(self.weights, gradient_w)]
-            self.biases = [b - (eta/n)*bw for b, bw in zip(self.biases, gradient_b)]
+        X = np.hstack([x for x, _ in mini_batch])
+        Y = np.hstack([y for _, y in mini_batch])
+
+        gradient_w, gradient_b = self.backprop(X, Y)
+        m = len(mini_batch)
+
+        self.weights = [w - (eta/m)*nw for w, nw in zip(self.weights, gradient_w)]
+        self.biases = [b - (eta/m)*nb for b, nb in zip(self.biases, gradient_b)]
     
     def evaluate(self, test_data):
         """Return the number of test inputs for which the neural
@@ -42,29 +45,40 @@ class NeuralNet:
                         for (x, y) in test_data]
         return sum(int(x == y) for (x, y) in test_results)
 
-    def backprop(self, x, y):
+    def backprop(self, X, Y):
         """
-        x : batch of input images  N*784
-        y : batch of true labels  N*10
+        X : batch of input images  ip_sz*N
+        Y : batch of true labels  out_sz*N
         """
         gradient_w = [np.zeros(w.shape) for w in self.weights]
         gradient_b = [np.zeros(b.shape) for b in self.biases]    
-        a = x
-        activitaions = [x]  # store all the activations layer by layer
+
+        a = X
+        activations = [X]  # store all the activations layer by layer
         z_values = [] # store all the z vectors layer by layer
         z = None
+
         for w, b in zip(self.weights, self.biases):
             z = w@a + b; z_values.append(z) 
-            a = self.sigmoid(z); activitaions.append(a)
+            a = self.sigmoid(z); activations.append(a)
         
-        delta = self.cost_func_deriv(a, y) * self.sigmoid_deriv(z) # dL/dz = dL/da * da/dz
-        gradient_w[-1] = delta @ np.transpose(activitaions[-2]) # dL/dw = dL/dz * dz/dw
-        gradient_b[-1] = delta # dL/db = dL/dz * dz/db
+        #             10*N                    10*N
+        delta = self.cost_func_deriv(a, Y) * self.sigmoid_deriv(z) # dL/dz = dL/da * da/dz
+        #                10*N        (output_layer_size*N).T
+        gradient_w[-1] = delta @ activations[-2].T # dL/dw = dL/dz * dz/dw
+        #                          10*N -> 10*1
+        gradient_b[-1] = np.sum(delta, axis=1, keepdims=True) # dL/db = dL/dz * dz/db
 
         for l in range(2, self.nlayers):
-            delta = (np.transpose(self.weights[-l+1]) @ delta) * self.sigmoid_deriv(z_values[-l])
-            gradient_w[-l] = delta @ np.transpose(activitaions[-l-1])
-            gradient_b[-l] =  delta
+            # assume current layer weights have size (curr_out * curr_ip)
+            # assume next layer weights have size (next_out * next_ip)
+            # then (next_ip = curr_out) 
+            # {((next_out * next_ip).T @ next_out*N -> next_ip*N)  .  curr_out*N} ->  curr_out*N
+            delta = (self.weights[-l+1].T @ delta) * self.sigmoid_deriv(z_values[-l]) # dL/dz for layer l
+            #           curr_out*N  @  (curr_ip * N).T        
+            gradient_w[-l] = delta @ activations[-l-1].T # dL/dw for layer l
+            #            curr_out*N -> curr_out*1
+            gradient_b[-l] =  np.sum(delta, axis=1, keepdims=True) # dL/db for layer l
 
         return gradient_w, gradient_b
             
@@ -76,7 +90,8 @@ class NeuralNet:
         return 1/(1+np.exp(-x))
     
     def sigmoid_deriv(self, x):
-        return self.sigmoid(x)*(1- self.sigmoid(x))
+        s = self.sigmoid(x)
+        return s * (1 - s)
     
 
 if __name__ == "__main__":
