@@ -1,5 +1,4 @@
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
 
 class PCA:
@@ -53,13 +52,12 @@ class PCA:
         self._plot_explained_variance(explained_variance, cum_explained_variance)
 
 
-    def fit(self, n: int):
+    def _get_n_components(self, n: int):
         assert self.D >= n > 0
-        n_principal_components = self.principal_components[:, :n]
-        return n_principal_components
+        return self.principal_components[:, :n]
 
     def fit_transform(self, n: int):
-        n_principal_components = self.fit(n)
+        n_principal_components = self._get_n_components(n)
         return self.x @ n_principal_components
 
     def inverse_transform(self, z: np.array(np.array(np.float32))):
