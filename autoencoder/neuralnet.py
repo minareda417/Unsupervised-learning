@@ -2,6 +2,7 @@ import numpy as np
 import random
 from sklearn.utils import shuffle
 from .activations import ActivationFunction, SigmoidActivation
+from .lr_scheduler import LRScheduler
 
 class NeuralNet:
     def __init__(self, *sizes,
@@ -25,7 +26,14 @@ class NeuralNet:
             a = self.activation.activate(w@a + b)
         return a
     
-    def train(self, X_train, Y_train, epochs, batch_size=128, eta=0.1, l2_param = 0):
+    def train(self, 
+              X_train, 
+              Y_train, 
+              epochs, 
+              batch_size=128, 
+              eta=0.1, 
+              l2_param = 0,
+              lr_scheduler: LRScheduler = None):
         """
         X : input data  N*ip_sz*1 (column vectors)
         Y : true labels N*out_sz*1 (column vectors)
@@ -36,6 +44,8 @@ class NeuralNet:
             for i in range(0, len(X_train), batch_size):
                 batch_x = np.hstack([x for x in X_train[i:i+batch_size]])
                 batch_y = np.hstack([y for y in Y_train[i:i+batch_size]])
+                if lr_scheduler is not None:
+                    eta = lr_scheduler.get_lr(nepoch)
                 self._update_mini_batch(batch_x, batch_y, eta, n, l2_param)
             
             print(f"epoch {nepoch+1:>3}/{epochs} : [{self.evaluate(X_train, Y_train):.6f}]")
