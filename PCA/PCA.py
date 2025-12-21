@@ -2,18 +2,25 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 class PCA:
-    def __init__(self, x:np.array(np.array(np.float32))):
+    def __init__(self, x:np.ndarray):
         self.x = x
         self.N = self.x.shape[0]
         self.D = self.x.shape[1]
-        self.principal_components, self.eigenvalues = self._get_principal_components()
+        self.principal_components, self.eigenvalues, self.covariance_matrix = self._get_principal_components()
 
     def _get_principal_components(self):
         covariance_matrix = (self.x.T @ self.x) / self.N
         eigenvalues, eigenvectors = np.linalg.eig(covariance_matrix)
         sort = np.argsort(eigenvalues)[::-1]
         principal_components = eigenvectors[:, sort]
-        return principal_components, np.sort(eigenvalues)[::-1]
+        return principal_components, np.sort(eigenvalues)[::-1], covariance_matrix
+
+    def plot_covariance_matrix(self):
+        plt.matshow(self.covariance_matrix, cmap='Blues', aspect='auto')
+        plt.title('Covariance Matrix', pad=20, fontsize=14, fontweight='bold')
+        plt.xlabel('Feature Index', fontsize=12)
+        plt.ylabel('Feature Index', fontsize=12)
+        plt.show()
 
     def _plot_explained_variance(self, explained_variance: np.array(np.float32), cum_explained_variance: np.array(np.float32)):
         x = np.linspace(1, self.D, self.D)
@@ -60,7 +67,7 @@ class PCA:
         n_principal_components = self._get_n_components(n)
         return self.x @ n_principal_components
 
-    def inverse_transform(self, z: np.array(np.array(np.float32))):
+    def inverse_transform(self, z: np.ndarray):
         n = z.shape[1]
         n_principal_components = self.principal_components[:, :n]
         return z @ n_principal_components.T
