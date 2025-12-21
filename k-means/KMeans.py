@@ -35,7 +35,7 @@ class KMeans:
             new_centroids[i] = self.x[clusters == i].mean(axis=0)
         return new_centroids
 
-    def fit(self, k: int, smart_initialization: bool = True, tol: float = 1e-4, max_iter: int = 300, plot_inertia: bool = False):
+    def fit(self, k: int, smart_initialization: bool = True, tol: float = 1e-4, max_iter: int = 300, plot_metrics: bool = False):
         assert self.N >= k > 0
         centroids = self._smart_initialization(k) if smart_initialization else self._random_initialization(k)
         inertias = []
@@ -46,14 +46,18 @@ class KMeans:
             if np.all(np.linalg.norm(new_centroids - centroids, axis=-1) <= tol):
                 break
             centroids = new_centroids
-        if plot_inertia:
+        results = {"inertia": inertia, "silhouette score": self._calculate_silhouette(clusters, k), "gap score": self._calculate_gap(k, inertia, tol=tol, max_iter=max_iter)}
+        if plot_metrics:
+            print(f"inertia = {results['inertia']}")
+            print(f"Silhouette score = {results['silhouette score']}")
+            print(f"Gap score = {results['gap score']}")
             plt.plot(np.linspace(1, len(inertias), len(inertias)),inertias)
             plt.title("Inertia over iterations")
             plt.ylabel("inertia")
             plt.xlabel("iteration")
             plt.tight_layout()
             plt.show()
-        return clusters, centroids, inertia
+        return clusters, centroids, results
 
     def _calculate_silhouette(self, clusters: np.ndarray, k: int):
         silhouette_scores = np.zeros(self.N)
@@ -99,17 +103,17 @@ class KMeans:
         gap = np.mean(ref_inertias) - np.log(inertia)
         return gap
 
-    def find_best_k(self, k_values=None, smart_initialization: bool = True, tol: float = 1e-4, max_iter: int = 300, plot_inertia: bool = False) -> dict[str, int]:
+    def find_best_k(self, k_values=None, smart_initialization: bool = True, tol: float = 1e-4, max_iter: int = 300) -> dict[str, int]:
         if k_values is None:
             k_values = [2, 3, 4, 5, 6, 7, 8, 9, 10]
         elbows = []
         silhouette_scores = []
         gap_scores = []
         for k in k_values:
-            clusters, centroids, inertia = self.fit(k, smart_initialization, tol, max_iter)
-            elbows.append(inertia)
-            silhouette_scores.append(self._calculate_silhouette(clusters, k))
-            gap_scores.append(self._calculate_gap(k, inertia, max_iter))
+            clusters, centroids, results = self.fit(k, smart_initialization, tol, max_iter)
+            elbows.append(results['inertia'])
+            silhouette_scores.append(results['silhouette score'])
+            gap_scores.append(results['gap score'])
 
         fig, axes = plt.subplots(1, 3, figsize=(15, 4))
 
