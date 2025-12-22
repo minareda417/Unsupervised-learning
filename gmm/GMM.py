@@ -2,7 +2,7 @@ import numpy as np
 from covariance_types import CovarianceType
 
 class GMM:
-    def __init__(self,k:int,covariance_type:CovarianceType,conv_limit, max_iter):
+    def __init__(self,k:int,covariance_type:CovarianceType,conv_limit:float, max_iter:int,seed:int=42):
         self.k = k
         self.covariance_type = covariance_type
         self.conv_limit = conv_limit
@@ -15,6 +15,8 @@ class GMM:
         self.reg_term = None
         self.log_likelihood = []
         self.r = None
+        self.rng = np.random.RandomState(42)
+        np.random.seed(seed)
         
     def fit(self,X:np.ndarray,reg_term:float= 1e-6):
         # initialize parameters: means, priors and covariances
@@ -96,7 +98,7 @@ class GMM:
         # initialize priors to equivalent values
         self.priors = np.full(self.k, 1 / self.k)
         # get random points from the dataset 
-        indices = np.random.choice(N_samples, self.k, replace=False)
+        indices = self.rng.choice(N_samples, self.k, replace=False)
         # declare the means to random values
         self.means = X[indices]
         
