@@ -117,4 +117,12 @@ class NeuralNet:
 
     def _cost_func_deriv(self, y, y_true):
         return (y-y_true)
+    
+    def plot_learning_curve(self):
+        import matplotlib.pyplot as plt
+        plt.plot(range(1, len(self.losses)+1), self.losses)
+        plt.xlabel('Epochs')
+        plt.ylabel('MSE Loss')
+        plt.title('Learning Curve')
+        plt.show()
 
