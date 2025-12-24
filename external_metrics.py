@@ -125,6 +125,9 @@ def compute_binary_metrics(labels_true, labels_pred, positive_class='M'):
     
     return {
         'accuracy': accuracy,
+        'precision': precision,
+        'recall': recall,
+        'f1': f1,
         'tp': tp,
         'fp': fp,
         'fn': fn,
