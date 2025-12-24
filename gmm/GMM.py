@@ -19,9 +19,6 @@ class GMM:
         np.random.seed(seed)
         
     def fit(self,X:np.ndarray,reg_term:float= 1e-6):
-        """
-            Time complexity -> O(N*T*K*D^3), Space complexity -> O(Nd + NK + Kd²) for full covariance, O(Nd + NK + Kd) for diagonal covariance
-        """
         # initialize parameters: means, priors and covariances
         self._init_parameters(X=X,reg_term=reg_term)
         prev_likelihood = None
