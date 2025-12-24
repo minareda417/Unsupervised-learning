@@ -30,7 +30,7 @@ class GMM:
             # M-step 
             self._M_step(X,self.r)
             
-            log_likelihood = self._compute_log_likelihood(X=X)
+            log_likelihood = self.compute_log_likelihood(X=X)
             self.log_likelihood.append(log_likelihood)
             
             # check for convergence
@@ -82,7 +82,7 @@ class GMM:
         log_pdf = -0.5 * (d * np.log(2 * np.pi) + log_det + dist)  # log N(x|μ,Σ)
         return np.exp(log_pdf)
     
-    def _compute_log_likelihood(self,X:np.ndarray):
+    def compute_log_likelihood(self,X:np.ndarray):
         N = X.shape[0]
         likelihood = 0
         threshold = 1e-10 #threshold to prevent log(0)
@@ -182,7 +182,7 @@ class GMM:
     def aic(self,X:np.ndarray):
         # Akaike Information Criterion
         # lower AIC means a better model
-        log_likelihood = self._compute_log_likelihood(X)
+        log_likelihood = self.compute_log_likelihood(X)
         n_params = self._count_params()
         
         return 2 * n_params - 2 * log_likelihood
@@ -191,7 +191,7 @@ class GMM:
         # Bayesian Information Criterion
         # lower BIC means a better model
         n_samples = X.shape[0]
-        log_likelihood = self._compute_log_likelihood(X)
+        log_likelihood = self.compute_log_likelihood(X)
         n_params = self._count_params()
         
         return n_params * np.log(n_samples) - 2 * log_likelihood
