@@ -14,7 +14,8 @@ class NeuralNet:
         np.random.seed(seed)
         # Xavier/Glorot initialization for better gradient flow
         self.weights = [np.random.randn(out_sz, in_sz) * np.sqrt(2.0 / (in_sz + out_sz)) 
-                       for in_sz, out_sz in zip(sizes, sizes[1:])] 
+                       for in_sz, out_sz in zip(sizes, sizes[1:])]
+        self.losses = [] 
         # each array represent weights between each layer 
         # each array's shape is (no. of neurons in current layer, no. of neurons in previous layer)
 
@@ -48,7 +49,9 @@ class NeuralNet:
                     eta = lr_scheduler.get_lr(nepoch)
                 self._update_mini_batch(batch_x, batch_y, eta, n, l2_param)
             
-            print(f"epoch {nepoch+1:>3}/{epochs} : [{self.evaluate(X_train, Y_train):.6f}]")
+            mse = self.evaluate(X_train, Y_train)
+            self.losses.append(mse)
+            print(f"epoch {nepoch+1:>3}/{epochs} : [{mse:.6f}]")
 
     def _update_mini_batch(self, batch_x, batch_y, eta, n, l2_param):
         """
