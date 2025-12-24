@@ -1,8 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+from internal_metrics import silhouette_score, davies_bouldin, calinski_harabasz
+
 class KMeans:
-    def __init__(self, x: np.ndarray, seed: int = 42):
+    def __init__(self, x: np.ndarray[np.float32], seed: int = 42):
         self.x = x
         self.N = self.x.shape[0]
         self.D = self.x.shape[1]
@@ -46,11 +48,13 @@ class KMeans:
             if np.all(np.linalg.norm(new_centroids - centroids, axis=-1) <= tol):
                 break
             centroids = new_centroids
-        results = {"inertia": inertia, "silhouette score": self._calculate_silhouette(clusters, k), "gap score": self._calculate_gap(k, inertia, tol=tol, max_iter=max_iter)}
+        results = {"inertia": inertia, "silhouette score": silhouette_score(self.x, clusters), "gap score": self._calculate_gap(k, inertia, tol=tol, max_iter=max_iter), "davies-bouldin": davies_bouldin(self.x, clusters), "calinski_harabasz": calinski_harabasz(self.x, clusters)}
         if plot_metrics:
             print(f"inertia = {results['inertia']}")
             print(f"Silhouette score = {results['silhouette score']}")
             print(f"Gap score = {results['gap score']}")
+            print(f"Davies-Bouldin index = {results['davies-bouldin']}")
+            print(f"Calinki-Harabasz index = {results['calinski_harabasz']}")
             plt.plot(np.linspace(1, len(inertias), len(inertias)),inertias)
             plt.title("Inertia over iterations")
             plt.ylabel("inertia")
@@ -59,25 +63,25 @@ class KMeans:
             plt.show()
         return clusters, centroids, results
 
-    def _calculate_silhouette(self, clusters: np.ndarray, k: int):
-        silhouette_scores = np.zeros(self.N)
-        for i in range(self.N):
-            cluster = clusters[i]
-            same_custer = self.x[clusters == cluster]
-            if len(same_custer) > 1:
-                a_i = np.mean([np.linalg.norm(self.x[i]-point) for point in same_custer if not np.array_equal(point, self.x[i])])
-            else:
-                a_i = 0
-            b_i = np.inf
-            for j in range(k):
-                if j != cluster:
-                    other_cluster = self.x[clusters == j]
-                    if len(other_cluster) > 0:
-                        mean_distance = np.mean([np.linalg.norm(self.x[i] - point) for point in other_cluster])
-                        b_i = min(b_i, mean_distance)
-            if max(a_i, b_i) > 0:
-                silhouette_scores[i] = (b_i - a_i) / max(a_i, b_i)
-        return np.mean(silhouette_scores)
+    # def _calculate_silhouette(self, clusters: np.ndarray, k: int):
+    #     silhouette_scores = np.zeros(self.N)
+    #     for i in range(self.N):
+    #         cluster = clusters[i]
+    #         same_custer = self.x[clusters == cluster]
+    #         if len(same_custer) > 1:
+    #             a_i = np.mean([np.linalg.norm(self.x[i]-point) for point in same_custer if not np.array_equal(point, self.x[i])])
+    #         else:
+    #             a_i = 0
+    #         b_i = np.inf
+    #         for j in range(k):
+    #             if j != cluster:
+    #                 other_cluster = self.x[clusters == j]
+    #                 if len(other_cluster) > 0:
+    #                     mean_distance = np.mean([np.linalg.norm(self.x[i] - point) for point in other_cluster])
+    #                     b_i = min(b_i, mean_distance)
+    #         if max(a_i, b_i) > 0:
+    #             silhouette_scores[i] = (b_i - a_i) / max(a_i, b_i)
+    #     return np.mean(silhouette_scores)
 
     def _calculate_gap(self, k: int, inertia: float, n_refs: int = 10, tol: float = 1e-4, max_iter: int = 100) -> float:
         mins = self.x.min(axis=0)
@@ -109,50 +113,83 @@ class KMeans:
         elbows = []
         silhouette_scores = []
         gap_scores = []
+        davies_bouldin_scores = []
+        calinski_harabasz_scores = []
+
+
         for k in k_values:
             clusters, centroids, results = self.fit(k, smart_initialization, tol, max_iter)
             elbows.append(results['inertia'])
             silhouette_scores.append(results['silhouette score'])
             gap_scores.append(results['gap score'])
+            davies_bouldin_scores.append(results['davies-bouldin'])
+            calinski_harabasz_scores.append(results['calinski_harabasz'])
 
-        fig, axes = plt.subplots(1, 3, figsize=(15, 4))
+        fig, axes = plt.subplots(2, 3, figsize=(15, 10))
 
-        axes[0].plot(k_values, elbows, 'bo-')
-        axes[0].set_xlabel('Number of clusters (k)')
-        axes[0].set_ylabel('Inertia')
-        axes[0].set_title('Elbow Method')
-        axes[0].grid(True)
+        axes[0][0].plot(k_values, elbows, 'bo-')
+        axes[0][0].set_xlabel('Number of clusters (k)')
+        axes[0][0].set_ylabel('Inertia')
+        axes[0][0].set_title('Elbow Method')
+        axes[0][0].grid(True)
 
-        axes[1].plot(k_values, silhouette_scores, 'go-')
-        axes[1].set_xlabel('Number of clusters (k)')
-        axes[1].set_ylabel('Silhouette Score')
-        axes[1].set_title('Silhouette Analysis')
+        axes[0][1].plot(k_values, silhouette_scores, 'go-')
+        axes[0][1].set_xlabel('Number of clusters (k)')
+        axes[0][1].set_ylabel('Silhouette Score')
+        axes[0][1].set_title('Silhouette Analysis')
         best_sil_k = list(k_values)[np.argmax(silhouette_scores)]
-        axes[1].axvline(x=best_sil_k, color='r', linestyle='--', alpha=0.5)
-        axes[1].grid(True)
+        axes[0][1].axvline(x=best_sil_k, color='r', linestyle='--', alpha=0.5)
+        axes[0][1].grid(True)
 
-        axes[2].plot(k_values, gap_scores, 'ro-')
-        axes[2].set_xlabel('Number of clusters (k)')
-        axes[2].set_ylabel('Gap Statistic')
-        axes[2].set_title('Gap Statistic')
+        axes[0][2].plot(k_values, gap_scores, 'ro-')
+        axes[0][2].set_xlabel('Number of clusters (k)')
+        axes[0][2].set_ylabel('Gap Statistic')
+        axes[0][2].set_title('Gap Statistic')
         best_gap_k = list(k_values)[np.argmax(gap_scores)]
-        axes[2].axvline(x=best_gap_k, color='r', linestyle='--', alpha=0.5)
-        axes[2].grid(True)
+        axes[0][2].axvline(x=best_gap_k, color='r', linestyle='--', alpha=0.5)
+        axes[0][2].grid(True)
+
+        axes[1][0].plot(k_values,  davies_bouldin_scores, 'yo-')
+        axes[1][0].set_xlabel('Number of clusters (k)')
+        axes[1][0].set_ylabel('Davies-Bouldin score')
+        axes[1][0].set_title('Davies-Bouldin Index')
+        best_db_k = list(k_values)[np.argmax(davies_bouldin_scores)]
+        axes[1][0].axvline(x=best_db_k, color='r', linestyle='--', alpha=0.5)
+        axes[1][0].grid(True)
+
+        axes[1][1].plot(k_values, calinski_harabasz_scores, 'ro-')
+        axes[1][1].set_xlabel('Number of clusters (k)')
+        axes[1][1].set_ylabel('Calinski-Harabasz score')
+        axes[1][1].set_title('Calinski-Harabasz index')
+        best_ch_k = list(k_values)[np.argmax(calinski_harabasz_scores)]
+        axes[1][1].axvline(x=best_ch_k, color='r', linestyle='--', alpha=0.5)
+        axes[1][1].grid(True)
+
         plt.tight_layout()
         plt.show()
 
         best_k_silhouette = list(k_values)[np.argmax(silhouette_scores)]
         best_k_gap = list(k_values)[np.argmax(gap_scores)]
+        best_davies_bouldin = list(k_values)[np.argmax(davies_bouldin_scores)]
+        best_calinski_harabasz = list(k_values)[np.argmax(calinski_harabasz_scores)]
 
         print(f"Best k by Silhouette Score: {best_k_silhouette} (score: {max(silhouette_scores):.4f})")
         print(f"Best k by Gap Statistic: {best_k_gap} (gap: {max(gap_scores):.4f})")
+        print(f"Best k by Davies-Bouldin: {best_db_k} (gap: {max(davies_bouldin_scores):.4f})")
+        print(f"Best k by Calinski-Harabasz: {best_ch_k} (gap: {max(calinski_harabasz_scores):.4f})")
         print("Check the Elbow plot for visual inflection point")
 
         return {
                 'k_values': list(k_values),
                 'inertias': elbows,
                 'silhouette_scores': silhouette_scores,
+                'davies_bouldin_scores': davies_bouldin_scores,
+                'calinski-harabasz': calinski_harabasz_scores,
                 'gap_stats': gap_scores,
                 'best_k_silhouette': best_k_silhouette,
-                'best_k_gap': best_k_gap
+                'best_k_gap': best_k_gap,
+                'best_davies_bouldin': best_davies_bouldin,
+                'best_k_davies_bouldin': best_db_k,
+                'best_calinski_bouldin': best_calinski_harabasz,
+                'best_k_calinski_Harabasz': best_ch_k
             }
