@@ -12,6 +12,9 @@ class KMeans:
         np.random.seed(seed)
 
     def _smart_initialization(self, k: int) -> np.ndarray:
+        """
+            Time complexity -> O(k*N*D), Space complexity -> O(k)
+        """
         centroids = [self.x[self.rng.randint(self.N)]]
         for i in range(k-1):
             distances = []
@@ -24,6 +27,9 @@ class KMeans:
         return np.array(centroids)
 
     def _random_initialization(self, k: int) -> np.ndarray:
+        """
+            Time complexity -> O(K), Space complexity -> O(k)
+        """
         return self.x[self.rng.choice(len(self.x), k, replace=False)]
 
     def _cluster(self, centroids: np.ndarray):
@@ -38,6 +44,9 @@ class KMeans:
         return new_centroids
 
     def fit(self, k: int, smart_initialization: bool = True, tol: float = 1e-4, max_iter: int = 300, plot_metrics: bool = False):
+        """
+            Time complexity -> O(N*K*T*D), Space complexity -> O(N*K + K*D) for kmeans++
+        """
         assert self.N >= k > 0
         centroids = self._smart_initialization(k) if smart_initialization else self._random_initialization(k)
         inertias = []
