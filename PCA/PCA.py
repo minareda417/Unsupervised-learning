@@ -10,9 +10,12 @@ class PCA:
         self.principal_components, self.eigenvalues, self.covariance_matrix = self._get_principal_components()
 
     def _get_principal_components(self):
-        covariance_matrix = (self.x.T @ self.x) / self.N
-        eigenvalues, eigenvectors = np.linalg.eig(covariance_matrix)
-        sort = np.argsort(eigenvalues)[::-1]
+        """
+            Time complexity -> O(N*D^2+ D^3), Space complexity -> O(D^2)
+        """
+        covariance_matrix = (self.x.T @ self.x) / self.N # O(D*D*N)
+        eigenvalues, eigenvectors = np.linalg.eig(covariance_matrix) # O(D^3)
+        sort = np.argsort(eigenvalues)[::-1] # O(DlogD)
         principal_components = eigenvectors[:, sort]
         return principal_components, np.sort(eigenvalues)[::-1], covariance_matrix
 
